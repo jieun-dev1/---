@@ -8,18 +8,26 @@ class System(
 
     }
 
-    //한 번의 10회 라운드를 진행
+    //한 번의 10회 라운드를 진행f
     fun game(): Result {
         val systemNumber = generateNumber()
         var round = 0
         println("${systemNumber} **시스템 숫자입니다**")
         while(round < 10) {
-            round+=1
-            val userInput = player.getUserInput() //123
+            round += 1
+            val userInput = player.getUserInput(round) //123
             println("${userInput} userInput 입니다")
             val result = score(userInput, systemNumber)
+            val resultForPlayer = RoundResultForPlayer(
+                strikeCount = result.strikeCount,
+                ballCount = result.ballCount,
+                attempts = userInput,
+                round = round
+            )
+            player.updateCurrentResult(resultForPlayer)
 
             if (result.strikeCount == 3) {
+                player.updateCurrentResult(resultForPlayer)
                 return Result(true, round)
             }
             println(result)
@@ -52,7 +60,7 @@ class System(
         return strikeCount
     }
 
-    fun checkIfBall(userInputSplits:List<Int>,  systemInputSplits: List<Int>): Int {
+    fun checkIfBall(userInputSplits:List<Int>, systemInputSplits: List<Int>): Int {
         var ballCount = 0
 
         for (i in 0..2) {
@@ -69,10 +77,10 @@ class System(
 }
 
 fun main(args: Array<String>) {
-    val player = AIv2()
+    val player = AIv3()
     //val player = Human()
     val system = System(player)
-    val totalCount = 50000
+    val totalCount = 1
     var winCount = 0
     var failCount = 0
     var meanOfWonAtTry = 0.0

@@ -1,3 +1,5 @@
 interface Player {
-    fun getUserInput(): List<Int>
+    fun getUserInput(round: Int): List<Int>
+
+    fun updateCurrentResult(result: RoundResultForPlayer)
 }
