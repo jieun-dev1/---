@@ -4,80 +4,77 @@ import Player
 import RoundResultForPlayer
 
 /**
- *   1. Nothing 이 아닌 Number 가 처음으로 등장했을 때 ->  candidate 으로 할당.
- *   2. currentTry 를 증가시키면서 패턴의 횟수인 5개가 될 때까지 센다.
- *   3. 패턴이 완성되면 EmptyList로 바꿔서, 다음 candidate 탐색
- *
- *    책임
- *    1. 유저 Input을 반환한다.
- *    2. Input 에 대한 result 를 기억한다.
- *    3. 현재 찾아야 하는 strike 수를 기억한다.
- *    3. 여러 패턴을 시도해서, 찾아야하는 목표인 힌트가 나온다면, 저장한다.
- *
- *    이미 1 strike 가 어딘 지 알았다면, 2스트라이크로 넘어가야 함. targetStrike 가 2 여야함.
+ * TODO: 아래 클래스의 변수를 변경하는 코드가 많은데, 어떻게 다른 클래스로 위임하면서 중복을 없앨지..?
  */
 class AIv3(
     private val patternProcessor: PatternProcessor,
     private val inputGenerator: InputGenerator,
     private val resultHitChecker: ResultHitChecker,
-    private val strikeFinder: StrikeFinder
+    private val strikeFinder: StrikeFinder,
+    private val checker: Checker
 ) : Player {
     private var nothings = mutableSetOf<Int>()
     private var attempts = mutableListOf<List<Int>>()
     private var attemptResults = mutableListOf<RoundResultForPlayer>()
 
+    //이게 진짜 필요 할까? -- 용도: 이미 1strike 가 나왔는데
+    private var tryCount = 0
+    private var lastStrike = 0
+    private var targetStrike = 0
     // 패턴을 바꿔가며 찾을 때, 기준이 되는 숫자와 결과 / 패턴을 순회 하여 목표에 도달한 후에는 삭제.
     private var patternTargetNumAndResult = Pair(listOf<Int>(), RoundResultForPlayer(0, 0, listOf(0,0,0)))
-
-    //이게 진짜 필요 할까? -- 용도: 이미 1strike 가 나왔는데
-    private var lastStrike = 0
-    private var tryCount = 0
-    private var targetStrike = 0
     private var hintAttemptAndRoundResults = mutableListOf<RoundResultForPlayer>()
     private var fixedStrikes = mutableListOf<Pair<Int, Int>>()
     private var hintAllFound = false
 
+    private fun isNothing(result: RoundResultForPlayer): Boolean {
+       return result.strikeCount == 0 && result.ballCount == 0
+    }
+
+
     //한번 패턴이 적용되었다면, round1 도 아니고, nothing 도 아님. 여기서 적용했는데도, 변화가 없다면?
-    //targetStrike 가 1 올라갔지만, 그대로 2스트라이크라면?
+    //targetStrike 가 1 올라갔지만, 그대로 2 스트라이크 라면?
     override fun getUserInput(round: Int): List<Int> {
+        return when {
+            checker.isFirstRoundOrNothing(
+                round = round,
+                attemptResults = attemptResults,
+                tryCount = tryCount,
+                targetStrike = targetStrike,
+                patternTargetNumAndResult = patternTargetNumAndResult
+            ) -> getRandomNumExceptNothings(round, nothings, fixedStrikes)
 
-        if (round == 1 || attemptResults.last().isNothing() || (tryCount == 0 && targetStrike < 1) ||
-            patternTargetNumAndResult.first == emptyList<Int>()) {
-            return getRandomNumExceptNothings(round, nothings, fixedStrikes)
-
-        } else if ((patternTargetNumAndResult.first != emptyList<Int>()) && tryCount <= 4 && !hintAllFound) {
-            tryCount += 1
-            return patternProcessor.run(
-                patternTargetNum = patternTargetNumAndResult.first,
-                currentTry = tryCount
-            )
-
-        } else if (tryCount == 5 || hintAllFound) {
-            fixedStrikes.addAll(
-                strikeFinder.from(
-                    targetStrike = targetStrike,
-                    hintAttemptAndRoundResults = hintAttemptAndRoundResults
+            checker.isPatternApplicationNeeded(
+                hintAllFound = hintAllFound,
+                tryCount = tryCount,
+                patternTargetNumAndResult = patternTargetNumAndResult,
+            ) -> {
+                tryCount += 1
+                patternProcessor.run(
+                    patternTargetNum = patternTargetNumAndResult.first,
+                    currentTry = tryCount
                 )
-            )
-            nothings.addAll(patternTargetNumAndResult.first - fixedStrikes.map {it.second}.toSet())
-            initPattern()
-            print("임시 로그 -- if tryCount == 5 || hintAllFound")
-            //여기부터 다시
-            return getRandomNumExceptNothings(round, nothings, fixedStrikes)
-        }
-        return emptyList()
-    }
+            }
 
-    override fun initPattern() {
-        with(this) {
-            tryCount = 0
-            lastStrike = fixedStrikes.size
-            targetStrike += 1
-            patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0,0,0)))
-            hintAttemptAndRoundResults = mutableListOf()
-            hintAllFound = false
+            checker.isPatternAllTriedOrHintAllFound(
+                tryCount = tryCount,
+                hintAllFound = hintAllFound
+            ) -> {
+                fixedStrikes.addAll(
+                    strikeFinder.from(
+                        targetStrike = targetStrike,
+                        hintAttemptAndRoundResults = hintAttemptAndRoundResults
+                    )
+                )
+                nothings.addAll(patternTargetNumAndResult.first - fixedStrikes.map {it.second}.toSet())
+                initPattern()
+                return getRandomNumExceptNothings(round, nothings, fixedStrikes)
+            }
+
+            else -> emptyList()
         }
-    }
+        }
+
 
     private fun getRandomNumExceptNothings(round: Int, nothings: Set<Int>, fixedStrikes: List<Pair<Int, Int>>): List<Int> {
         val result = inputGenerator.randomInts(nothings, fixedStrikes)
@@ -86,17 +83,7 @@ class AIv3(
         return result
     }
 
-    override fun initRound() {
-        this.nothings = mutableSetOf()
-        this.attempts = mutableListOf()
-        this.attemptResults = mutableListOf()
-        this.patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0,0,0)))
-        this.lastStrike = 0
-        this.tryCount = 0
-        this.targetStrike = 0
-        this.hintAttemptAndRoundResults = mutableListOf()
-        this.fixedStrikes = mutableListOf()
-    }
+
 
     override fun updateCurrentResult(result: RoundResultForPlayer) {
 
@@ -107,7 +94,7 @@ class AIv3(
         }
 
         //처음으로 nothing 일 때
-        if ((result.strikeCount == 0 && result.ballCount == 0)) {
+        if (isNothing(result)) {
             nothings.addAll(result.attemptNum)
             attemptResults.add(
                 RoundResultForPlayer(
@@ -118,35 +105,44 @@ class AIv3(
             )
             return
         }
-        //패턴은 없으나, 마지막으로 얻은 결과 == 현재 결과일 때 && targetStrike 가 존재할 때.
-        //현재 fixedStrike 를 제외한 숫자는 emptyList 에 넣는다.
-        if (targetStrike!=0 && result.strikeCount == lastStrike
-            && result.ballCount == 0) {
+        //마지막으로 얻은 strike 수와 == 현재 결과의 TargetStrike 가 같을 때.
+        //즉, fixedStrike 를 제외한 숫자는 해당없으니, emptyList 에 넣는다.
+        if (checker.isNothingFoundAfterLastTrial(
+                targetStrike = targetStrike,
+                result = result,
+                lastStrike = lastStrike
+            )) {
+            print("targetStrike: $targetStrike, result: $result, lastStrike: $lastStrike \n checker.isNothingFoundAfterLastTrial 로 감 ")
+
             nothings.addAll(result.attemptNum - fixedStrikes.map { it.second }.toSet())
             attemptResults.add(
                 RoundResultForPlayer(result.strikeCount, 0, result.attemptNum))
             return
         }
 
-        //처음으로 nothing 이 아닌 결과가 나왔을 때
-        if (targetStrike == 0 || patternTargetNumAndResult.first == emptyList<Int>()) {
+        //처음으로 nothing 이 아닌 결과가 나와서, 이 숫자를 패턴에 적용하고자 할 때.
+        if (checker.isTargetNumFound(
+                targetStrike = targetStrike,
+                patternTargetNum = patternTargetNumAndResult.first)
+            ) {
+            print("targetStrike: $targetStrike patternTargetNum: $patternTargetNumAndResult.first, \n checker.isTargetNumFound가 나옴")
             targetStrike = result.strikeCount + result.ballCount
-
             attemptResults.add(
                 RoundResultForPlayer(result.strikeCount, result.ballCount, result.attemptNum)
             )
             patternTargetNumAndResult = Pair(attempts.last(), attemptResults.last())
-            print("patternTargetNumAndResult이 정해졌습니다: $patternTargetNumAndResult \n   현재의 targetStrike 입니ㅜ: $targetStrike\\n\")\n")
+            print("patternTargetNumAndResult이 정해졌습니다: $patternTargetNumAndResult \n   현재의 targetStrike 입니다: $targetStrike \n")
             resultHitChecker.initHitResultsForTheStrike(patternTargetNumAndResult.second)
 
-            if (resultHitChecker.checkAndReturnResult(patternTargetNumAndResult.second) != null) {
+            if (resultHitChecker.returnIfHintFound(patternTargetNumAndResult.second) != null) {
                 hintAttemptAndRoundResults.add(result)
             }
             return
         }
 
         if (patternTargetNumAndResult == emptyList<Int>()) {
-            //2Strike -> 2TargetStrike 가 아님.
+            print("patternTargetNumAndResult == emptyList<Int>()가 나옴")
+
             targetStrike = result.strikeCount + result.ballCount
 
             attemptResults.add(
@@ -156,13 +152,15 @@ class AIv3(
             print("patternTargetNumAndResult이 정해졌습니다: $patternTargetNumAndResult \n")
             resultHitChecker.initHitResultsForTheStrike(patternTargetNumAndResult.second)
 
-            if (resultHitChecker.checkAndReturnResult(patternTargetNumAndResult.second) != null) {
+            if (resultHitChecker.returnIfHintFound(patternTargetNumAndResult.second) != null) {
                 hintAttemptAndRoundResults.add(result)
             }
             return
         }
 
+        //현재 진행 중인 패턴이 있을 때
         if (patternTargetNumAndResult != emptyList<Int>()) {
+            print("patternTargetNumAndResult != emptyList<Int>() 등장")
             attemptResults.add(
                 RoundResultForPlayer(
                     strikeCount = result.strikeCount,
@@ -172,7 +170,7 @@ class AIv3(
             )
             patternTargetNumAndResult = Pair(attempts.last(), attemptResults.last())
 
-            if (resultHitChecker.checkAndReturnResult(patternTargetNumAndResult.second) != null) {
+            if (resultHitChecker.returnIfHintFound(patternTargetNumAndResult.second) != null) {
                 hintAttemptAndRoundResults.add(result)
             }
             if(resultHitChecker.hintAllFound()){
@@ -181,6 +179,36 @@ class AIv3(
             }
             return
         }
+    }
+
+    override fun initPattern() {
+        print("initPattern 의 호출")
+        with(this) {
+            tryCount = 0
+            lastStrike = fixedStrikes.size
+            targetStrike += 1
+            patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0,0,0)))
+            hintAttemptAndRoundResults = mutableListOf()
+            // only initPattern has this.
+            hintAllFound = false
+        }
+    }
+
+    override fun initRound() {
+        print("initRound 의 호출")
+        with(this){
+            tryCount = 0
+            lastStrike = fixedStrikes.size
+            targetStrike = 0
+            patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0,0,0)))
+            hintAttemptAndRoundResults = mutableListOf()
+            nothings = mutableSetOf()
+            attempts = mutableListOf()
+            attemptResults = mutableListOf()
+            fixedStrikes = mutableListOf()
+        }
+
+
     }
 
 }
