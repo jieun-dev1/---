@@ -16,7 +16,7 @@ class InputGenerator {
             it in nothings || it in nums
         }.shuffled()
 
-        print("현재 남아있는 remainingNumbers: $remainingNumbers \n")
+        print("\n 현재 남아있는 remainingNumbers: $remainingNumbers \n")
 
         //1스트라이크일 때, index -1 out of bounds for length 1 이슈
         //아마 remainingNumbers 가 3이 안되서 이런거 아닐까?

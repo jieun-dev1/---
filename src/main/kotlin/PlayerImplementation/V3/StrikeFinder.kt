@@ -7,11 +7,11 @@ class StrikeFinder {
         when (targetStrike) {
             /**
              * 123 - Right answer
-             * -------Trial ------
+             *
+             * -------추론 가능한 Hint ------
              * 156 - 1Strike
              * 165 - 1Strike
              *
-             * 2개를 찾아야 비교할 수 있음.
              */
             1 -> {
                 print("1 Target Strike's hintAttemptAndRoundResults: $hintAttemptAndRoundResults \n")
@@ -27,7 +27,7 @@ class StrikeFinder {
              * 1strike 1ball 2개와 2strike 비교.
              *
              *             123 - right answer.
-             *             -------Trial ------
+             *             -------추론 가능한 Hint ------
              *             134 - 1strike 1ball
              *             143 - 2strike
              *             413 - 1strike 1ball
@@ -55,7 +55,7 @@ class StrikeFinder {
              * 3ball 2개 비교.
              *
              *             123 - right answer.
-             *             -------Trial ------
+             *             -------추론 가능한 Hint ------
              *             312 - 3 ball
              *             231 - 3 ball
              */

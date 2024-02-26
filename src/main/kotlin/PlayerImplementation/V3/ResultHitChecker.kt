@@ -3,19 +3,15 @@ package PlayerImplementation.V3
 import RoundResultForCheck
 import RoundResultForPlayer
 
-/**
- * 역할
- *
- * 필요한 ResultHit 들을 파악했는지 확인.
- */
 class ResultHitChecker {
 
     private var results:List<RoundResultForCheck> = emptyList()
 
-    fun checkAndReturnResult(roundResult: RoundResultForPlayer): RoundResultForPlayer? {
+    fun returnIfHintFound(roundResult: RoundResultForPlayer): RoundResultForPlayer? {
         val found =  results.find {
-            (roundResult.strikeCount == it.strikeCount) && (roundResult.ballCount == it.ballCount)
-                    && !it.checked
+            (roundResult.strikeCount == it.strikeCount)
+            && (roundResult.ballCount == it.ballCount)
+            && !it.checked
         }
 
         if (found != null) {
@@ -23,7 +19,8 @@ class ResultHitChecker {
             return RoundResultForPlayer(
                 strikeCount = found.strikeCount,
                 ballCount = found.ballCount,
-                attemptNum = roundResult.attemptNum
+                attemptNum = roundResult.attemptNum,
+                round = roundResult.round
             )
         }
         return null
