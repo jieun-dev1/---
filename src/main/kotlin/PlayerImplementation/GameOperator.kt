@@ -17,8 +17,8 @@ class GameOperator(
         return randomList
     }
 
-    fun initRound() {
-        player.initRound()
+    fun initGame() {
+        player.initGame()
     }
 
     fun getUserInput(round: Int): List<Int> {

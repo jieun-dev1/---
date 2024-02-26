@@ -3,7 +3,7 @@ interface Player {
 
     fun updateCurrentResult(result: RoundResultForPlayer)
 
-    fun initRound()
+    fun initGame()
 
     fun initPattern()
 }

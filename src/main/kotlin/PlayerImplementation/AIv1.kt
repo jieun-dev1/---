@@ -15,7 +15,7 @@ class AIv1 (
 
     }
 
-    override fun initRound() {
+    override fun initGame() {
         TODO("Not yet implemented")
     }
 

@@ -13,7 +13,7 @@ class Human(): Player {
     }
 
 
-    override fun initRound() {
+    override fun initGame() {
         return
     }
 

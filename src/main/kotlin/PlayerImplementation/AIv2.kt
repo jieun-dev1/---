@@ -19,7 +19,7 @@ class AIv2 (
         return
     }
 
-    override fun initRound() {
+    override fun initGame() {
         return
     }
 

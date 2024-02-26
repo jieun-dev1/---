@@ -16,7 +16,8 @@ data class RoundResultForCheck(
 data class RoundResultForPlayer(
     val strikeCount: Int,
     val ballCount: Int,
-    val attemptNum: List<Int>
+    val attemptNum: List<Int>,
+    val round: Int
 ) {
     fun isNothing(): Boolean {
         return this.strikeCount == 0 && this.ballCount == 0

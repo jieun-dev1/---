@@ -22,7 +22,7 @@ class AIv3(
     private var lastStrike = 0
     private var targetStrike = 0
     // 패턴을 바꿔가며 찾을 때, 기준이 되는 숫자와 결과 / 패턴을 순회 하여 목표에 도달한 후에는 삭제.
-    private var patternTargetNumAndResult = Pair(listOf<Int>(), RoundResultForPlayer(0, 0, listOf(0,0,0)))
+    private var patternTargetNumAndResult = Pair(listOf<Int>(), RoundResultForPlayer(0, 0, listOf(0,0,0), 0))
     private var hintAttemptAndRoundResults = mutableListOf<RoundResultForPlayer>()
     private var fixedStrikes = mutableListOf<Pair<Int, Int>>()
     private var hintAllFound = false
@@ -78,7 +78,6 @@ class AIv3(
 
     private fun getRandomNumExceptNothings(round: Int, nothings: Set<Int>, fixedStrikes: List<Pair<Int, Int>>): List<Int> {
         val result = inputGenerator.randomInts(nothings, fixedStrikes)
-        println("\n${round}라운드의 random 숫자 : ${result}\n")
         attempts.add(result)
         return result
     }
@@ -87,7 +86,7 @@ class AIv3(
 
     override fun updateCurrentResult(result: RoundResultForPlayer) {
 
-        print("시도한 숫자:${result.attemptNum} 의 결과: ${result.strikeCount}스트라이크 ${result.ballCount} 볼 입니다\n")
+        print("${result.round} 라운드에서 시도한 숫자:${result.attemptNum} 의 결과: ${result.strikeCount}스트라이크 ${result.ballCount} 볼 입니다\n")
 
         if (result.strikeCount == 3) {
             return
@@ -100,7 +99,8 @@ class AIv3(
                 RoundResultForPlayer(
                     strikeCount = 0,
                     ballCount = 0,
-                    attemptNum = result.attemptNum
+                    attemptNum = result.attemptNum,
+                    round = result.round
                 )
             )
             return
@@ -116,7 +116,13 @@ class AIv3(
 
             nothings.addAll(result.attemptNum - fixedStrikes.map { it.second }.toSet())
             attemptResults.add(
-                RoundResultForPlayer(result.strikeCount, 0, result.attemptNum))
+                RoundResultForPlayer(
+                    strikeCount = result.strikeCount,
+                    ballCount = 0,
+                    attemptNum = result.attemptNum,
+                    round = result.round
+                    )
+            )
             return
         }
 
@@ -125,13 +131,16 @@ class AIv3(
                 targetStrike = targetStrike,
                 patternTargetNum = patternTargetNumAndResult.first)
             ) {
-            print("targetStrike: $targetStrike patternTargetNum: $patternTargetNumAndResult.first, \n checker.isTargetNumFound가 나옴")
             targetStrike = result.strikeCount + result.ballCount
             attemptResults.add(
-                RoundResultForPlayer(result.strikeCount, result.ballCount, result.attemptNum)
+                RoundResultForPlayer(
+                    strikeCount = result.strikeCount,
+                    ballCount = result.ballCount,
+                    attemptNum =result.attemptNum,
+                    round = result.round)
             )
             patternTargetNumAndResult = Pair(attempts.last(), attemptResults.last())
-            print("patternTargetNumAndResult이 정해졌습니다: $patternTargetNumAndResult \n   현재의 targetStrike 입니다: $targetStrike \n")
+            print("\npatternTargetNumAndResult 가 정해졌습니다: $patternTargetNumAndResult \n   현재의 targetStrike : $targetStrike \n")
             resultHitChecker.initHitResultsForTheStrike(patternTargetNumAndResult.second)
 
             if (resultHitChecker.returnIfHintFound(patternTargetNumAndResult.second) != null) {
@@ -146,7 +155,7 @@ class AIv3(
             targetStrike = result.strikeCount + result.ballCount
 
             attemptResults.add(
-                RoundResultForPlayer(result.strikeCount, result.ballCount, result.attemptNum)
+                RoundResultForPlayer(result.strikeCount, result.ballCount, result.attemptNum, result.round)
             )
             patternTargetNumAndResult = Pair(attempts.last(), attemptResults.last())
             print("patternTargetNumAndResult이 정해졌습니다: $patternTargetNumAndResult \n")
@@ -165,7 +174,8 @@ class AIv3(
                 RoundResultForPlayer(
                     strikeCount = result.strikeCount,
                     ballCount = result.ballCount,
-                    attemptNum = result.attemptNum
+                    attemptNum = result.attemptNum,
+                    round = result.round
                 )
             )
             patternTargetNumAndResult = Pair(attempts.last(), attemptResults.last())
@@ -182,29 +192,31 @@ class AIv3(
     }
 
     override fun initPattern() {
-        print("initPattern 의 호출")
+        print("\n ****** 패턴 초기화 ******")
         with(this) {
             tryCount = 0
             lastStrike = fixedStrikes.size
             targetStrike += 1
-            patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0,0,0)))
+            patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0,0,0), round = 0))
             hintAttemptAndRoundResults = mutableListOf()
-            // only initPattern has this.
+            // only initPattern has this.F
             hintAllFound = false
         }
     }
 
-    override fun initRound() {
-        print("initRound 의 호출")
+    override fun initGame() {
+        print("")
         with(this){
             tryCount = 0
-            lastStrike = fixedStrikes.size
+            lastStrike = 0
             targetStrike = 0
-            patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0,0,0)))
+            patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0,0,0), 0))
             hintAttemptAndRoundResults = mutableListOf()
+
             nothings = mutableSetOf()
             attempts = mutableListOf()
             attemptResults = mutableListOf()
+
             fixedStrikes = mutableListOf()
         }
 
