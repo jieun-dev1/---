@@ -16,26 +16,25 @@ class AIv3(
     private var nothings = mutableSetOf<Int>()
     private var attempts = mutableListOf<List<Int>>()
     private var attemptResults = mutableListOf<RoundResultForPlayer>()
-
-    //이게 진짜 필요 할까? -- 용도: 이미 1strike 가 나왔는데
     private var tryCount = 0
     private var lastStrike = 0
     private var targetStrike = 0
-    // 패턴을 바꿔가며 찾을 때, 기준이 되는 숫자와 결과 / 패턴을 순회 하여 목표에 도달한 후에는 삭제.
-    private var patternTargetNumAndResult = Pair(listOf<Int>(), RoundResultForPlayer(0, 0, listOf(0,0,0), 0))
+
+    // 패턴을 바꿔가며 찾을 때, 기준이 되는 숫자와 결과이다. 패턴을 순회 하여 목표에 도달한 후에는 삭제하고, 다음 시도 때 다시 할당한다.
+    private var patternTargetNumAndResult = Pair(listOf<Int>(), RoundResultForPlayer(0, 0, listOf(0, 0, 0), 0))
+
+    //
     private var hintAttemptAndRoundResults = mutableListOf<RoundResultForPlayer>()
     private var fixedStrikes = mutableListOf<Pair<Int, Int>>()
     private var hintAllFound = false
 
     private fun isNothing(result: RoundResultForPlayer): Boolean {
-       return result.strikeCount == 0 && result.ballCount == 0
+        return result.strikeCount == 0 && result.ballCount == 0
     }
 
-
-    //한번 패턴이 적용되었다면, round1 도 아니고, nothing 도 아님. 여기서 적용했는데도, 변화가 없다면?
-    //targetStrike 가 1 올라갔지만, 그대로 2 스트라이크 라면?
     override fun getUserInput(round: Int): List<Int> {
         return when {
+            //1라운드 || 이전 결과가 nothing -> Nothing 제외 하고 Random 생성
             checker.isFirstRoundOrNothing(
                 round = round,
                 attemptResults = attemptResults,
@@ -43,7 +42,7 @@ class AIv3(
                 targetStrike = targetStrike,
                 patternTargetNumAndResult = patternTargetNumAndResult
             ) -> getRandomNumExceptNothings(round, nothings, fixedStrikes)
-
+            //패턴 전략을 사용 중 -> 계속 적용
             checker.isPatternApplicationNeeded(
                 hintAllFound = hintAllFound,
                 tryCount = tryCount,
@@ -55,7 +54,7 @@ class AIv3(
                     currentTry = tryCount
                 )
             }
-
+            //패턴 5가지 경우 모두 시도 || 힌트 모두 찾음
             checker.isPatternAllTriedOrHintAllFound(
                 tryCount = tryCount,
                 hintAllFound = hintAllFound
@@ -66,22 +65,25 @@ class AIv3(
                         hintAttemptAndRoundResults = hintAttemptAndRoundResults
                     )
                 )
-                nothings.addAll(patternTargetNumAndResult.first - fixedStrikes.map {it.second}.toSet())
+                nothings.addAll(patternTargetNumAndResult.first - fixedStrikes.map { it.second }.toSet())
                 initPattern()
                 return getRandomNumExceptNothings(round, nothings, fixedStrikes)
             }
 
             else -> emptyList()
         }
-        }
+    }
 
 
-    private fun getRandomNumExceptNothings(round: Int, nothings: Set<Int>, fixedStrikes: List<Pair<Int, Int>>): List<Int> {
+    private fun getRandomNumExceptNothings(
+        round: Int,
+        nothings: Set<Int>,
+        fixedStrikes: List<Pair<Int, Int>>
+    ): List<Int> {
         val result = inputGenerator.randomInts(nothings, fixedStrikes)
         attempts.add(result)
         return result
     }
-
 
 
     override fun updateCurrentResult(result: RoundResultForPlayer) {
@@ -111,8 +113,9 @@ class AIv3(
                 targetStrike = targetStrike,
                 result = result,
                 lastStrike = lastStrike
-            )) {
-            print("targetStrike: $targetStrike, result: $result, lastStrike: $lastStrike \n checker.isNothingFoundAfterLastTrial 로 감 ")
+            )
+        ) {
+            print("NothingFoundAfterLastTrial \n" + "targetStrike: $targetStrike, result: $result, lastStrike: $lastStrike")
 
             nothings.addAll(result.attemptNum - fixedStrikes.map { it.second }.toSet())
             attemptResults.add(
@@ -121,23 +124,25 @@ class AIv3(
                     ballCount = 0,
                     attemptNum = result.attemptNum,
                     round = result.round
-                    )
+                )
             )
             return
         }
 
-        //처음으로 nothing 이 아닌 결과가 나와서, 이 숫자를 패턴에 적용하고자 할 때.
+        //처음으로 nothing 이 아닌 결과 -> 이 숫자를 패턴에 적용하자
         if (checker.isTargetNumFound(
                 targetStrike = targetStrike,
-                patternTargetNum = patternTargetNumAndResult.first)
-            ) {
+                patternTargetNum = patternTargetNumAndResult.first
+            )
+        ) {
             targetStrike = result.strikeCount + result.ballCount
             attemptResults.add(
                 RoundResultForPlayer(
                     strikeCount = result.strikeCount,
                     ballCount = result.ballCount,
-                    attemptNum =result.attemptNum,
-                    round = result.round)
+                    attemptNum = result.attemptNum,
+                    round = result.round
+                )
             )
             patternTargetNumAndResult = Pair(attempts.last(), attemptResults.last())
             print("\npatternTargetNumAndResult 가 정해졌습니다: $patternTargetNumAndResult \n   현재의 targetStrike : $targetStrike \n")
@@ -149,27 +154,9 @@ class AIv3(
             return
         }
 
-        if (patternTargetNumAndResult == emptyList<Int>()) {
-            print("patternTargetNumAndResult == emptyList<Int>()가 나옴")
-
-            targetStrike = result.strikeCount + result.ballCount
-
-            attemptResults.add(
-                RoundResultForPlayer(result.strikeCount, result.ballCount, result.attemptNum, result.round)
-            )
-            patternTargetNumAndResult = Pair(attempts.last(), attemptResults.last())
-            print("patternTargetNumAndResult이 정해졌습니다: $patternTargetNumAndResult \n")
-            resultHitChecker.initHitResultsForTheStrike(patternTargetNumAndResult.second)
-
-            if (resultHitChecker.returnIfHintFound(patternTargetNumAndResult.second) != null) {
-                hintAttemptAndRoundResults.add(result)
-            }
-            return
-        }
-
         //현재 진행 중인 패턴이 있을 때
         if (patternTargetNumAndResult != emptyList<Int>()) {
-            print("patternTargetNumAndResult != emptyList<Int>() 등장")
+            print("현재 진행 중인 패턴입니다: $patternTargetNumAndResult")
             attemptResults.add(
                 RoundResultForPlayer(
                     strikeCount = result.strikeCount,
@@ -183,7 +170,7 @@ class AIv3(
             if (resultHitChecker.returnIfHintFound(patternTargetNumAndResult.second) != null) {
                 hintAttemptAndRoundResults.add(result)
             }
-            if(resultHitChecker.hintAllFound()){
+            if (resultHitChecker.hintAllFound()) {
                 hintAllFound = true
                 print("## 여기서 hintAllFound 임을 확인했습니다 ##")
             }
@@ -191,26 +178,27 @@ class AIv3(
         }
     }
 
+    //패턴에서 알아낼 수 있는 것을 다 봤을 때, 초기화.
     override fun initPattern() {
         print("\n ****** 패턴 초기화 ******")
         with(this) {
             tryCount = 0
             lastStrike = fixedStrikes.size
             targetStrike += 1
-            patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0,0,0), round = 0))
+            patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0, 0, 0), round = 0))
             hintAttemptAndRoundResults = mutableListOf()
             // only initPattern has this.F
             hintAllFound = false
         }
     }
 
+    //게임 종료 시 할당되었던 변수 초기화.
     override fun initGame() {
-        print("")
-        with(this){
+        with(this) {
             tryCount = 0
             lastStrike = 0
             targetStrike = 0
-            patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0,0,0), 0))
+            patternTargetNumAndResult = Pair(listOf(), RoundResultForPlayer(0, 0, listOf(0, 0, 0), 0))
             hintAttemptAndRoundResults = mutableListOf()
 
             nothings = mutableSetOf()
@@ -219,8 +207,5 @@ class AIv3(
 
             fixedStrikes = mutableListOf()
         }
-
-
     }
-
 }
